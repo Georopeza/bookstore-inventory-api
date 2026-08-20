@@ -60,3 +60,22 @@ class BookSerializer(serializers.ModelSerializer):
                 "supplier_country must be a two-letter country code."
             )
         return code
+
+
+class PriceCalculationSerializer(serializers.Serializer):
+    """Forma de respuesta del cálculo de precio.
+
+    `rate_source` no aparece en el contrato original: se añade para que el
+    cliente distinga un precio calculado con tasa real de uno calculado con la
+    tasa de respaldo tras un fallo del proveedor externo.
+    """
+
+    book_id = serializers.IntegerField()
+    cost_usd = serializers.DecimalField(max_digits=10, decimal_places=2)
+    exchange_rate = serializers.DecimalField(max_digits=18, decimal_places=6)
+    cost_local = serializers.DecimalField(max_digits=14, decimal_places=2)
+    margin_percentage = serializers.DecimalField(max_digits=5, decimal_places=2)
+    selling_price_local = serializers.DecimalField(max_digits=14, decimal_places=2)
+    currency = serializers.CharField()
+    rate_source = serializers.CharField()
+    calculation_timestamp = serializers.DateTimeField()
