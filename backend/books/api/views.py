@@ -1,12 +1,14 @@
+from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from books.infrastructure.factories import build_calculate_selling_price
 from books.models import Book
 
-from .serializers import BookSerializer
+from .serializers import BookSerializer, PriceCalculationSerializer
 
 DEFAULT_LOW_STOCK_THRESHOLD = 10
 
@@ -43,3 +45,14 @@ class BookViewSet(viewsets.ModelViewSet):
         # Inclusivo: un umbral de 10 incluye a los libros con exactamente 10
         # unidades, que ya están en el límite de reposición.
         return self._paginated(self.get_queryset().filter(stock_quantity__lte=threshold))
+
+    @action(detail=True, methods=["post"], url_path="calculate-price")
+    def calculate_price(self, request: Request, pk: str | None = None) -> Response:
+        currency = str(
+            request.data.get("currency") or settings.LOCAL_CURRENCY
+        ).strip().upper()
+        if not currency.isalpha() or len(currency) != 3:
+            raise ValidationError({"currency": "Must be a three-letter currency code."})
+
+        calculation = build_calculate_selling_price().execute(int(pk), currency)
+        return Response(PriceCalculationSerializer(calculation).data)
