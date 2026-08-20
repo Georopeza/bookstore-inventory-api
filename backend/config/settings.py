@@ -96,6 +96,8 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "EXCEPTION_HANDLER": "books.api.exception_handler.api_exception_handler",
+    # El enunciado representa los importes como números JSON, no cadenas.
+    "COERCE_DECIMAL_TO_STRING": False,
 }
 
 CORS_ALLOWED_ORIGINS = env_list(
