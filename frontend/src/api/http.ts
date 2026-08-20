@@ -34,7 +34,7 @@ export class ApiError extends Error {
       case 0:
         return 'No se pudo contactar con el servidor. Verifica que la API esté en ejecución.'
       case 400:
-        return this.message || 'Revisa los datos introducidos.'
+        return 'Revisa los datos introducidos.'
       case 404:
         return 'El recurso solicitado ya no existe.'
       case 503:

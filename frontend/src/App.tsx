@@ -1,5 +1,10 @@
+import { ToastProvider } from './components/ToastProvider'
 import { InventoryDashboard } from './pages/InventoryDashboard'
 
 export default function App() {
-  return <InventoryDashboard />
+  return (
+    <ToastProvider>
+      <InventoryDashboard />
+    </ToastProvider>
+  )
 }
