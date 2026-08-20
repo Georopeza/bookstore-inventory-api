@@ -32,6 +32,22 @@ Levanta PostgreSQL, la API en `http://localhost:8000` y la interfaz en
 `http://localhost:5173`. Las migraciones se aplican al arrancar el contenedor
 del backend.
 
+> **Nota:** esta configuración se escribió siguiendo las prácticas estándar
+> (imagen `slim` con dependencias en capa separada para el backend, build
+> multi-stage con Nginx para el frontend, healthcheck de PostgreSQL antes de
+> levantar el backend), pero no pudo ejecutarse en esta máquina por un fallo
+> de WSL2 ajeno al proyecto (el servicio `LxssManager` de Windows estaba
+> detenido). La ejecución local, que sí está verificada de punta a punta, es
+> la ruta recomendada mientras tanto.
+
+El contenedor del backend solo aplica las migraciones al arrancar; la base de
+datos de Docker parte vacía. Para cargar el catálogo de ejemplo dentro del
+contenedor:
+
+```bash
+docker compose exec backend python manage.py seed_books
+```
+
 ### En local
 
 **Backend**
