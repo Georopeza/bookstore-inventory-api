@@ -245,6 +245,28 @@ checksum rechazaría ISBN inventados durante una prueba manual. El código se
 almacena normalizado, sin separadores, para que la restricción de unicidad no
 pueda burlarse escribiendo el mismo ISBN con guiones distintos.
 
+**Por qué el precio se calcula bajo demanda y no al crear el libro.** El
+enunciado lo pide así de forma explícita, tanto en el modelo de datos, donde
+`selling_price_local` aparece en `null`, como en los requisitos de la interfaz,
+que reclaman "una acción explícita que dispare el endpoint de integración".
+Pero la decisión se sostiene por sí sola:
+
+- **Registrar inventario no debería depender de un tercero.** Si el precio se
+  calculase dentro del `POST /books`, una caída del proveedor de tasas
+  impediría dar de alta un libro, o dejaría la creación esperando el tiempo de
+  espera de una petición externa. Alta de inventario y valoración son dos
+  operaciones con modos de fallo distintos, y mantenerlas separadas evita que
+  el fallo de una arrastre a la otra.
+- **Una tasa de cambio caduca.** Un precio calculado en el momento del alta
+  queda obsoleto en cuanto se mueve el mercado, y nadie sabría cuán viejo es.
+  Al ser una acción explícita, cada precio queda acompañado de su
+  `calculation_timestamp` y de la tasa concreta que se le aplicó, y puede
+  recalcularse cuando el negocio lo decida sin tocar el resto de la ficha.
+- **El libro tiene un precio de venta cuando alguien decide ponérselo.** Un
+  libro recién registrado sin precio es un estado legítimo del negocio, no un
+  dato incompleto: `null` significa "todavía no valorado", que es información
+  distinta de un importe calculado con una tasa arbitraria.
+
 Además, el umbral de stock bajo es **inclusivo**: `threshold=10` incluye los
 libros con exactamente 10 unidades, que ya están en el límite de reposición.
 
