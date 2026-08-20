@@ -1,0 +1,246 @@
+{
+  "info": {
+    "name": "Bookstore Inventory API",
+    "description": "Gestión de inventario de librerías con cálculo de precio de venta sugerido a partir de tasas de cambio. Ajusta la variable base_url si la API no corre en http://localhost:8000.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "book_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "CRUD",
+      "item": [
+        {
+          "name": "Crear libro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"responde 201\", function () { pm.response.to.have.status(201); });",
+                  "pm.test(\"el ISBN se normaliza\", function () {",
+                  "    pm.expect(pm.response.json().isbn).to.eql(\"9788437604947\");",
+                  "});",
+                  "pm.collectionVariables.set(\"book_id\", pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/books", "host": ["{{base_url}}"], "path": ["books"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"El Quijote\",\n  \"author\": \"Miguel de Cervantes\",\n  \"isbn\": \"978-84-376-0494-7\",\n  \"cost_usd\": 15.99,\n  \"stock_quantity\": 25,\n  \"category\": \"Literatura Clásica\",\n  \"supplier_country\": \"ES\"\n}"
+            },
+            "description": "El ISBN admite guiones o espacios y se almacena normalizado. El campo selling_price_local nace vacío: solo lo fija el cálculo de precio."
+          }
+        },
+        {
+          "name": "Listar libros",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/books", "host": ["{{base_url}}"], "path": ["books"] },
+            "description": "Sin el parámetro page devuelve la lista completa."
+          }
+        },
+        {
+          "name": "Listar libros (paginado)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/books?page=1&page_size=5",
+              "host": ["{{base_url}}"],
+              "path": ["books"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "page_size", "value": "5" }
+              ]
+            },
+            "description": "Con page la respuesta incluye count, next, previous y results."
+          }
+        },
+        {
+          "name": "Obtener libro por ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Actualizar libro",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"El Quijote\",\n  \"author\": \"Miguel de Cervantes\",\n  \"isbn\": \"978-84-376-0494-7\",\n  \"cost_usd\": 16.99,\n  \"stock_quantity\": 30,\n  \"category\": \"Literatura Clásica\",\n  \"supplier_country\": \"ES\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Eliminar libro",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}"]
+            },
+            "description": "Responde 204 sin cuerpo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Busqueda y stock",
+      "item": [
+        {
+          "name": "Buscar por categoria",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/books/search?category=Novela",
+              "host": ["{{base_url}}"],
+              "path": ["books", "search"],
+              "query": [{ "key": "category", "value": "Novela" }]
+            },
+            "description": "Coincidencia parcial e insensible a mayúsculas. Sin el parámetro category responde 400."
+          }
+        },
+        {
+          "name": "Libros con stock bajo",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/books/low-stock?threshold=10",
+              "host": ["{{base_url}}"],
+              "path": ["books", "low-stock"],
+              "query": [{ "key": "threshold", "value": "10" }]
+            },
+            "description": "El umbral es inclusivo: threshold=10 incluye los libros con exactamente 10 unidades. Por defecto vale 10."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Calculo de precio",
+      "item": [
+        {
+          "name": "Calcular precio (moneda local por defecto)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"responde 200\", function () { pm.response.to.have.status(200); });",
+                  "var body = pm.response.json();",
+                  "pm.test(\"el margen se aplica sobre el costo convertido\", function () {",
+                  "    var expected = Math.round(body.cost_local * 1.4 * 100) / 100;",
+                  "    pm.expect(body.selling_price_local).to.eql(expected);",
+                  "});",
+                  "pm.test(\"indica el origen de la tasa\", function () {",
+                  "    pm.expect([\"live\", \"fallback\"]).to.include(body.rate_source);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}/calculate-price",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}", "calculate-price"]
+            },
+            "body": { "mode": "raw", "raw": "{}" },
+            "description": "Convierte el costo con la tasa actual, aplica el margen configurado (40%) y guarda selling_price_local. El campo rate_source indica si la tasa es real o de respaldo."
+          }
+        },
+        {
+          "name": "Calcular precio (moneda explicita)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}/calculate-price",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}", "calculate-price"]
+            },
+            "body": { "mode": "raw", "raw": "{\n  \"currency\": \"COP\"\n}" },
+            "description": "La moneda local por defecto se configura con LOCAL_CURRENCY y puede sobrescribirse en cada petición."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Errores",
+      "item": [
+        {
+          "name": "400 - ISBN con formato invalido",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/books", "host": ["{{base_url}}"], "path": ["books"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sin ISBN valido\",\n  \"author\": \"Anonimo\",\n  \"isbn\": \"123\",\n  \"cost_usd\": 10.00,\n  \"stock_quantity\": 1,\n  \"category\": \"Prueba\",\n  \"supplier_country\": \"ES\"\n}"
+            }
+          }
+        },
+        {
+          "name": "400 - Costo no positivo",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/books", "host": ["{{base_url}}"], "path": ["books"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Costo invalido\",\n  \"author\": \"Anonimo\",\n  \"isbn\": \"9780306406157\",\n  \"cost_usd\": 0,\n  \"stock_quantity\": 1,\n  \"category\": \"Prueba\",\n  \"supplier_country\": \"ES\"\n}"
+            }
+          }
+        },
+        {
+          "name": "404 - Libro inexistente",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/books/999999",
+              "host": ["{{base_url}}"],
+              "path": ["books", "999999"]
+            }
+          }
+        },
+        {
+          "name": "503 - Moneda sin tasa disponible",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{base_url}}/books/{{book_id}}/calculate-price",
+              "host": ["{{base_url}}"],
+              "path": ["books", "{{book_id}}", "calculate-price"]
+            },
+            "body": { "mode": "raw", "raw": "{\n  \"currency\": \"XYZ\"\n}" },
+            "description": "Si el proveedor externo esta caido y la moneda no tiene tasa de respaldo configurada, la API responde 503 en lugar de inventar un precio."
+          }
+        }
+      ]
+    }
+  ]
+}
